@@ -1,0 +1,4 @@
+workspaces:
+  - fixtures/*
+  - graph-loader
+  - test

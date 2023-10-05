@@ -1,0 +1,17 @@
+{
+  "name": "@fixture/c",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "react-server": "./server.js",
+      "default": "./client.js"
+    }
+  },
+  "dependencies": {
+    "@fixture/a": "workspace:*",
+    "@fixture/b": "workspace:*",
+    "react": "canary",
+    "react-server-dom-webpack": "canary"
+  }
+}

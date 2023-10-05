@@ -1,0 +1,21 @@
+{
+  "name": "test",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "react-server": "./server.js",
+      "default": "./client.js"
+    }
+  },
+  "dependencies": {
+    "@fixture/a": "workspace:*",
+    "@fixture/b": "workspace:*",
+    "@fixture/c": "workspace:*",
+    "graph-loader": "workspace:*"
+  },
+  "scripts": {
+    "test": "node --no-warnings --loader graph-loader --require graph-loader/register --test *.test.js",
+    "watch": "node --no-warnings --watch --loader graph-loader --test *.test.js"
+  }
+}

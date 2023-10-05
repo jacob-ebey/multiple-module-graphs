@@ -1,0 +1,13 @@
+{
+  "name": "graph-loader",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./loader.js"
+    },
+    "./register": {
+      "default": "./register.cjs"
+    }
+  }
+}

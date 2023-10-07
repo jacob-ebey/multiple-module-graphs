@@ -9,5 +9,8 @@
     "./register": {
       "default": "./register.cjs"
     }
+  },
+  "dependencies": {
+    "resolve.exports": "2.0.2"
   }
 }

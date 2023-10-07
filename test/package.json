@@ -16,6 +16,7 @@
   },
   "scripts": {
     "test": "node --no-warnings --loader graph-loader --require graph-loader/register --test *.test.js",
-    "watch": "node --no-warnings --watch --loader graph-loader --test *.test.js"
+    "watch": "node --no-warnings --watch --loader graph-loader --test *.test.js",
+    "test:inspect": "node --inspect-brk --no-warnings --loader graph-loader --require graph-loader/register --test *.test.js"
   }
 }

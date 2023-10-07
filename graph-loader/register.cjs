@@ -18,23 +18,6 @@ const originalLoad = Module._load;
 //   return originalCompile.apply(this, [content, filename]);
 // };
 
-function findPkg(_path) {
-  let stat;
-  let _dirPath = _path;
-  stat = fs.statSync(_path);
-  if (stat.isFile) {
-    const parent = path.dirname(_path);
-    _dirPath = parent;
-    if (fs.existsSync(path.join(parent, 'package.json'))) {
-      const pkg = fs.readFileSync(path.join(parent, 'package.json'), 'utf8');
-      return {
-        pkg: JSON.parse(pkg),
-        dir: _dirPath,
-      };
-    }
-  }
-}
-
 let prevLoad = [];
 Module._load = function load(request, parent, ...rest) {
   const index = request.indexOf('--condition=');
@@ -43,53 +26,53 @@ Module._load = function load(request, parent, ...rest) {
     let newRequest = request.slice(0, index);
     const sp = new URLSearchParams(request.slice(index + 2));
     const conditions = sp.getAll('condition');
-
-    const { pkg, dir } = findPkg(newRequest);
-    const requestedModule = path.basename(newRequest);
-    // Assume that it's the base entry for now
-    // and force react to load with the server condition
-    if (requestedModule === 'index.js' && pkg.name === 'react') {
-      const importEntry = '.';
-      const resolvePath = resolve.exports(pkg, importEntry, {
-        conditions: conditions,
-      });
-      newRequest = path.join(dir, resolvePath[0]);
-    }
-    prevLoad.push(newRequest);
+    prevLoad.push({ request: newRequest, conditions });
     return originalLoad.call(this, newRequest, parent, ...rest);
   }
-  prevLoad.push(request);
+  prevLoad.push({
+    request,
+    conditions: [],
+  });
   return originalLoad.call(this, request, parent, ...rest);
 };
 
-let forceReactServer;
 Module.prototype.require = function require(request, ...rest) {
-  if (
-    request.includes(
-      './cjs/react-server-dom-webpack-server.node.unbundled.development.js'
-    )
-  ) {
-    forceReactServer = true;
-  }
-  if (forceReactServer && request == 'react') {
+  const inheritReactServerCondition =
+    prevLoad
+      .reverse()
+      // offset for now, might need to figure out a way to guess
+      // this number
+      .slice(3)
+      .findIndex((x) => x.conditions.includes('react-server')) > -1;
+
+  if (inheritReactServerCondition) {
     const require = Module.createRequire(this.path);
-    const requirePath = require.resolve(request);
-    const { pkg, dir } = findPkg(requirePath);
-    const resolvedEx = resolve.exports(pkg, '.', {
-      conditions: ['react-server'],
-    });
-    return originalRequire.call(this, path.join(dir, resolvedEx[0]), ...rest);
+    const pathsToCheck = this.paths;
+    let foundModule;
+
+    for (let p of pathsToCheck) {
+      try {
+        const toResolve = path.join(p, request);
+        foundModule = require.resolve(toResolve, {
+          paths: pathsToCheck,
+        });
+        break;
+      } catch (err) {
+        // digest the error for now
+        // considering, it's most probably going to be a require resolve
+        // error failing to find the module since it could be a node
+        // generic module
+      }
+    }
+
+    if (foundModule) {
+      const { pkg, dir } = findPkg(foundModule);
+      const resolvedEx = resolve.exports(pkg, '.', {
+        conditions: ['react-server'],
+      });
+      return originalRequire.call(this, path.join(dir, resolvedEx[0]), ...rest);
+    }
   }
-  // const [start, end] = this.id.split('?', 2);
-  // // console.log({ request, this: this });
-  // if (end) {
-  //   const searchParams = new URLSearchParams(end);
-  //   const conditions = searchParams.getAll('condition');
-  //   const require = Module.createRequire(this.path);
-  //   require();
-  //   console.log(conditions);
-  // }
-  // // console.log("REQUIRE", { request, this: this });
   return originalRequire.call(this, request, ...rest);
 };
 
@@ -141,8 +124,44 @@ Module.prototype.require = function require(request, ...rest) {
 // //   return originalFindPath.call(this, request, parent, isMain, options, ...rest);
 // // };
 
-// // const originalResolve = Module.prototype.require.resolve;
-// // Module.prototype.require.resolve.prototype = function resolve(request, ...rest) {
-// //   console.log("RESOLVE", { request, rest, this: this });
-// //   return originalResolve.call(this, request, ...rest);
-// // };
+// const originalResolve = Module.prototype.require.resolve;
+// Module.prototype.require.resolve = function resolve(request, ...rest) {
+//   console.log('RESOLVE', { request, rest, this: this });
+//   return originalResolve.call(this, request, ...rest);
+// };
+
+function findPkg(_path) {
+  let stat;
+  let pkgDirPath = _path;
+  let foundPkgPath = false;
+
+  // considering pnpm is being used
+  let depth = 20;
+
+  do {
+    stat = fs.statSync(pkgDirPath);
+    if (stat.isFile) {
+      const parent = path.dirname(pkgDirPath);
+      pkgDirPath = parent;
+      foundPkgPath = fs.existsSync(path.join(pkgDirPath, 'package.json'));
+      depth -= 1;
+    } else {
+      foundPkgPath = fs.existsSync(path.join(pkgDirPath, 'package.json'));
+      depth -= 1;
+    }
+  } while (!foundPkgPath && depth > 0);
+
+  if (!foundPkgPath) {
+    return {
+      found: false,
+    };
+  }
+
+  const pkg = fs.readFileSync(path.join(pkgDirPath, 'package.json'), 'utf8');
+
+  return {
+    found: true,
+    pkg: JSON.parse(pkg),
+    dir: pkgDirPath,
+  };
+}

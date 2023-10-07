@@ -67,7 +67,6 @@ export async function load(urlString, context, defaultLoad) {
     newURL.search = sp;
     // loaded = await defaultLoad(newURL.href, context);
     loaded.source ??= await fs.readFile(fileURLToPath(newURL.href));
-    debugger;
   }
 
   return loaded;

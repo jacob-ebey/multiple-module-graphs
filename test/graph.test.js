@@ -17,7 +17,15 @@ it('should match expected graph for no condition', () => {
   assert.notStrictEqual(a.React, aServer.React);
 
   assert.strictEqual(a.default, 'fixture-a-client');
-  // assert.strictEqual(a, b.a);
+
+  // Will always be different due to the nature of `import *`
+  assert.notStrictEqual(a, b.a);
+
+  // Will match, because the actual exports are referenced objects and
+  // not created during resolution of module
+  assert.strictEqual(a.default, b.a.default);
+  assert.strictEqual(a.React, b.a.React);
+
   // assert.strictEqual(a, c.a);
   // assert.strictEqual(a, relative.a);
 
